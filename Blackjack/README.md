@@ -11,4 +11,4 @@
 ```shell
 python3 main.py
 ```
-4. You're done! Game should prompt you to type in a word, then will start asking for guesses to the letters!
+4. You're done! Game will start automatically you'll be shown your hand and asked if you want to hit or stand.
