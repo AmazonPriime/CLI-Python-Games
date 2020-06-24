@@ -122,11 +122,16 @@ class Player:
         self.stand = False
 
     def hand_check(self):
-        self.bust = True if player.hand.hand_value() > 21 else False
-        return player.hand.hand_value()
+        self.bust = True if self.hand.hand_value() > 21 else False
 
     def set_stand(self):
         self.stand = True
+
+    def is_standing(self):
+        return self.stand
+
+    def is_bust(self):
+        return self.bust
 
 '''
 Class for Dealer object
@@ -150,7 +155,7 @@ class Game:
         self.dealer = Dealer()
         self.round = 1
         self.output = ( f"{' '.join(config['suits'].values())} Blackjack - %%round%%\n"
-                        'Current hand: %%player_hand%%\n'
+                        'Current hand (%%hand_value%%): %%player_hand%%\n'
                         'Dealers hand: x%%dealer_hand_size%% cards\n'
                         'Cards in deck: x%%deck_size%%\n')
 
@@ -160,25 +165,75 @@ class Game:
         self.dealer.deal(self.deck, self.dealer, 2)
 
     def update_output(self):
+        updated_output = self.output[:]
         context = {
             '%%round%%' : self.round,
             '%%player_hand%%' : self.player.hand,
+            '%%hand_value%%' : self.player.hand.hand_value(),
             '%%dealer_hand_size%%' : self.dealer.hand.size(),
             '%%deck_size%%' : self.deck.size()
         }
         for tag, value in context.items():
-            self.output = self.output.replace(tag, str(value))
+            updated_output = updated_output.replace(tag, str(value))
+        return updated_output
 
     def display(self):
         os.system(commands['clear'].get(sys.platform, 'clear'))
-        self.update_output()
-        print(self.output)
+        print(self.update_output())
 
     def loop(self):
         # main game loop
         while True:
             self.display()
 
+            # check hands to see if either player or dealer has bust
+            self.player.hand_check()
+            self.dealer.hand_check()
+
+            if self.player.is_bust() and self.dealer.is_bust():
+                print('It is a draw, both you and the dealer have bust.')
+                break
+            elif self.player.is_bust():
+                print('You have bust, you have lost the game.')
+                break
+            elif self.dealer.is_bust():
+                print('The dealer has bust, you have won the game!')
+                break
+
+            # check if either player or dealer has blackjack
+            if self.player.hand.hand_value() == 21:
+                print('You have a blackjack! You win the game!')
+                break
+            elif self.dealer.hand.hand_value() == 21:
+                print('The dealer has a blackjack, you have lost the game.')
+                break
+
+            # check if both the player and the dealer are standing
+            if self.player.is_standing() and self.dealer.is_standing():
+                if self.player.hand.hand_value() > self.dealer.hand.hand_value():
+                    print('You have a higher value hand than the dealer! You have won the game!')
+                elif self.player.hand.hand_value() < self.dealer.hand.hand_value():
+                    print('The dealer has a higher value hand than you, you have lost the game.')
+                else:
+                    print('It is a draw, both you and the dealer have the same value hand.')
+                break
+
+            # dealer will hit unless their hand value is more than or equal to 17
+            if self.dealer.hand.hand_value() <= 16:
+                self.dealer.deal(self.deck, self.dealer)
+            else:
+                self.dealer.set_stand()
+
+            # player can input hit or stand - as long as they're not all ready standing
+            if not self.player.is_standing():
+                move = input('- What would you like to do? (\'hit\' or \'stand\'): ')
+                if move.lower() == 'hit':
+                    self.dealer.deal(self.deck, self.player)
+                elif move.lower() == 'stand':
+                    self.player.set_stand()
+
+            # incremenet the round value
+            self.round += 1
 
 def main():
     game = Game()
