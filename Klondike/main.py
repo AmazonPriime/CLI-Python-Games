@@ -4,7 +4,7 @@ init()
 
 import os, sys, random
 
-"""
+print("""
 Python Klondike ---------------
 (D)->[2♥] | {♣} {♥} {♠} {♦}
 -------------------------------
@@ -17,7 +17,7 @@ Python Klondike ---------------
 6                      Q♦  []
 7                          A♦
 ...
-"""
+""")
 
 class Suit:
     """ Class representing each suit in the deck of cards.
@@ -35,6 +35,9 @@ class Suit:
 
     def __str__(self):
         return self.symbol
+
+    def get_colour(self):
+        return self.colour
 
 
 class Card:
@@ -66,6 +69,18 @@ class Card:
         else:
             return '[]'
 
+    def get_value(self):
+        return self.value
+
+    def get_rank(self):
+        return self.rank
+
+    def get_suit(self):
+        return self.suit
+
+    def is_shown(self):
+        return self.shown
+
 
 class CardCollection:
     """ Class representing a collection of cards.
@@ -91,9 +106,22 @@ class CardCollection:
         else:
             print('Card is not in the collection and cannot be removed.')
 
+    def get_cards(self):
+        return self.cards
+
+    def get_card(self, index):
+        if self.size() > index:
+            return self.cards[index]
+        else:
+            return 0
+
     def merge(self, collection):
-        for card in collection:
-            self.add(card)
+        if isinstance(collection, list):
+            for card in collection:
+                self.add(card)
+        elif isinstance(collection, CardCollection):
+            for card in collection.get_cards():
+                self.add(card)
 
     def shuffle(self):
         random.shuffle(self.cards)
@@ -109,6 +137,7 @@ class Deck(CardCollection):
 
     Attributes:
         suits (class): dictionary containing all the suits and details about them
+        faces (class): dictionary containing the various face cards
         cards (inherited): a standard list containing all the cards in the collection
     """
 
@@ -119,13 +148,22 @@ class Deck(CardCollection):
         'diamonds' : Suit('diamonds', '♦', 'red')
     }
 
+    faces = {
+        'K' : 'king',
+        'Q' : 'queen',
+        'J' : 'jack'
+    }
+
     def __init__(self):
         super().__init__()
         for suit in self.suits:
-            card_values = list(range(2,11)) + ['A', 'J', 'Q', 'K']
+            card_values = ['A'] + list(range(2,11)) + list(self.faces)
             for i in range(len(card_values)):
                 self.add(Card(suit, card_values[i], i))
         self.shuffle()
+
+    def draw(self):
+        return self.cards.pop()
 
 
 class Board:
@@ -138,11 +176,23 @@ class Board:
         tableau: list to represent the main board of the game - 7 piles of cards
     """
 
+    columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+
     def __init__(self):
         self.deck = Deck()
         self.waste = CardCollection()
         self.foundations = [CardCollection() for i in range(4)]
         self.tableau = [CardCollection() for i in range(7)]
+
+    def tableau_merge(self, collection_a, collection_b, index):
+        # create a new collection and add the cards to it from location A
+        temp_collection = CardCollection()
+        temp_collection.merge(collection_a.get_cards()[index:])
+        # remove the cards in the new collection from the location A collection
+        for card in temp_collection.get_cards():
+            collection_a.remove(card)
+        # merge new collection and location B collections together
+        collection_b.merge(temp_collection)
 
     def move(self, a, b):
         """ Function to facilitate moving cards to other piles
@@ -151,7 +201,51 @@ class Board:
             a: the card(s) which are being moved - 'C4'
             b: location cards are being moved to - 'A'
         """
-        pass
+
+        # if locations aren't correct min lengths do nothing
+        if not (len(a) >= 2 and len(b) == 1):
+            return
+
+        # if either locations are invalid then do nothing
+        if not ((a[0].upper() in self.columns) and (b.upper() in self.columns)) :
+            return
+
+        # if row is either not a number or is less than 1 then do nothing
+        if isinstance(a[1:], int):
+            if int(a[1:]) < 1:
+                return
+        else:
+            return
+
+        # if location A's row number is out of bounds then do nothing
+        if int(a[1:]) > self.tableau[self.columns.index(a[0].upper())].size():
+            return
+
+        # if first card in the cards being moved isn't shown (faced up) then do nothing
+        collection_a = self.tableau[self.columns.index(a[0].upper())]
+        card_a = collection_a.get_card(int(a[1:] - 1))
+        if not collection_a.get_card(int(a[1:] - 1)).is_shown():
+            return
+
+        # if the collection at location B has cards then handle it appropiately
+        collection_b = self.tableau[self.columns.index(b.upper())]
+        if collection_b.size() > 0:
+            card_b = collection_b.get_card(-1)
+            # if the suits don't alternate in colour between card in location A and B then do nothing
+            if card_a.get_suit().get_colour() == card_b.get_suit().get_colour():
+                return
+            # if rank of card on end of collection at location B is exactly 1 higher then move cards over
+            if (card_b.get_rank() - 1) == card_a.get_rank():
+                # merge the two collections together
+                tableau_merge(collection_a, collection_b, int(a[1:] - 1))
+            else:
+                return
+        # if the card A value is King then move the partial collection over
+        elif card_a.get_value() == 'K':
+            # merge the two collections together
+            tableau_merge(collection_a, collection_b, int(a[1:] - 1))
+        else:
+            return
 
 
 def main():
