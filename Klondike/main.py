@@ -71,8 +71,8 @@ class Card:
     def get_suit(self):
         return self.suit
 
-    def toggle_shown(self):
-        self.shown = !self.shown
+    def set_shown(self):
+        self.shown = True
 
     def is_shown(self):
         return self.shown
@@ -129,6 +129,17 @@ class CardCollection:
                 collection.add(card)
             return collection
         else:
+            return 0
+
+    def check_index(self, card_index):
+        try:
+            index = int(card_index)
+            if index >= 0:
+                self.cards[int(card_index)]
+            else:
+                return 0
+            return 1
+        except:
             return 0
 
     def shuffle(self):
@@ -212,8 +223,37 @@ class Board:
     def __init__(self):
         self.deck = Deck()
         self.waste = CardCollection()
-        self.foundations = [CardCollection() for i in range(4)]
+        self.foundations = [Foundation(suit) for suit in Deck.suits.values()]
         self.tableau = [CardCollection() for i in range(7)]
+
+    def setup(self):
+        # setup the tableau piles by drawing from the deck and change the last card of each draw to be shown
+        for i in range(7):
+            for j in range(i):
+                card = self.deck.draw()
+                self.tableau[i].add(card)
+                if i == j:
+                    card.set_shown()
+
+    def draw(self):
+        # if the deck has cards in it we draw the card and add to waste pile
+        if self.deck.size() > 0:
+            card = self.deck.draw()
+            self.waste.add(card)
+            card.set_shown()
+        # if there are no cards in the deck then we recycle the waste
+        else:
+            for card in self.waste.get_cards():
+                self.waste.remove(card)
+                self.deck.add(card)
+
+    def get_foundation(self, suit):
+        collection_b = 0
+        for foundation in self.foundations:
+            if foundation.get_suit() == card.get_suit():
+                collection_b = foundation
+                break
+        return collection_b
 
     def move(self, a, b):
         """ Function to facilitate moving cards to other piles
@@ -233,18 +273,96 @@ class Board:
             5. moving cards from tableau pile to foundation pile: a:'C', b:'*'
         """
 
+        # check which of the different move commands is being issued
         if a[0].upper() in columns and len(a) > 1 and b.upper() in columns:
-            "means it's for 1"
-        elif a[0] == '*' and len(a) > 1 and b.upper() in columns:
-            "means it's for 2"
-        elif a.upper() == 'W':
-            if b.upper() in columns:
-                "means it's for 3"
-            elif b == "*":
-                "means it's for 4"
-        elif a.upper() in columns and b == "*":
-            "means it's for 5"
+            "checks for example 1"
+            # assign each collection to a variable for easier referencing
+            collection_a = self.tableau[self.columns.index(a[0].upper())]
+            collection_b = self.tableau[self.columns.index(b.upper()]
+            # check that the index in arg a is valid
+            if not collection_a.check_index(a[1:] - 1):
+                return 0
+            # make sure the card is shown
+            a_index = int(a[1:] - 1)
+            if not collection_a.get_card(a_index).is_shown():
+                return 0
 
+        elif a[0] == '*' and len(a) == 2 and b.upper() in columns:
+            "checks for example 2"
+            try:
+                index = int(a[1])
+                if index < 1 or index > 4:
+                    return 0
+            except:
+                return 0
+            # assign each collection to a variable for easier referencing and -1 index for last card
+            collection_a = self.foundations[index - 1]
+            collection_b = self.tableau[self.columns.index(b.upper()]
+            a_index = -1
+
+        elif a.upper() == 'W':
+            # make sure the waste pile has cards
+            if self.waste.size() == 0:
+                return 0
+            # assign collection a and -1 index for last card
+            collection_a = self.waste
+            a_index = -1
+            if b.upper() in columns:
+                "checks for example 3"
+                # assign collection b
+                collection_b = self.tableau[self.columns.index(b.upper()]
+
+            elif b == "*":
+                "checks for example 4"
+                # get card for checks and assign collection b to the correct foundation
+                card = collection_a.get_card(a_index)
+                collection_b = self.get_foundation(card)
+                # make sure a valid foundation was found
+                if collection_b == 0:
+                    return 0
+                # if foundation has no cards ensure the card being moved is an ace
+                if collection_b.size() == 0:
+                    if card.get_rank() != 0:
+                        return 0
+
+        elif a.upper() in columns and b == "*":
+            "checks for example 5"
+            # assign collection a and -1 index for last card
+            collection_a = self.tableau[self.columns.index(a.upper()]
+            a_index = -1
+            if collection_a.size() == 0:
+                return 0
+            # get card for checks and assign collection b to the correct foundation
+            card = collection_a.get_card(a_index)
+            collection_b = self.get_foundation(card)
+            # make sure a valid foundation was found
+            if collection_b == 0:
+                return 0
+            # if foundation has no cards ensure the card being moved is an ace
+            if collection_b.size() == 0:
+                if card.get_rank() != 0:
+                    return 0
+        else:
+            return 0
+
+        # cards to be moved from collection_a and the first card in the collection for easier referencing
+        cards_moving = collection_a[a_index:]
+        first_card = cards_moving[0]
+        if collection_b.get_card(-1).get_rank() - 1 == first_card.get_rank():
+            if isinstance(collection_b, Foundation):
+                if first_card.get_suit() == collection_b.get_suit():
+                    collection_a.remove(first_card)
+                    collection_b.add(first_card)
+            else:
+                if first_card.get_colour() != collection_b.get_card(-1).get_colour():
+                    for card in cards_moving:
+                        collection_a.remove(card)
+                        collection_b.add(card)
+        else:
+            return 0
+
+    def display(self):
+        pass
 
 
 def main():

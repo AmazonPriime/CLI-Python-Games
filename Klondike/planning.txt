@@ -93,7 +93,7 @@ Enter Move:
       ~ argument must be A-G
     - b
       ~ argument must be *
-  * check that the column from arg b is not empty
+  * check that the column from arg a is not empty
   * if the foundation pile is empty
     - card at bottom of collection must be an ace of same suit
   * if the foundation pile is not empty
