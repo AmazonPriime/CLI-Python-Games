@@ -93,10 +93,14 @@ class CardCollection:
     def add(self, card):
         if isinstance(card, Card):
             self.cards.append(card)
+            return 1
+        return 0
 
     def remove(self, card):
         if card in self.cards:
             self.cards.remove(card)
+            return 1
+        return 0
 
     def get_cards(self):
         return self.cards
@@ -111,9 +115,12 @@ class CardCollection:
         if isinstance(collection, list):
             for card in collection:
                 self.add(card)
+            return 1
         elif isinstance(collection, CardCollection):
             for card in collection.get_cards():
                 self.add(card)
+            return 1
+        return 0
 
     def create_subset(self, index):
         if index < self.size():
@@ -169,6 +176,27 @@ class Deck(CardCollection):
         return 0
 
 
+class Foundation(CardCollection):
+    """ Class representing the game deck.
+
+    Inherits from the CardCollection class.
+
+    Attributes:
+        cards (inherited): a standard list containing all the cards in the collection
+        suit: the suit this foundation will contain
+    """
+
+    def __init__(self, suit):
+        super().__init__()
+        self.suit = suit
+
+    def add(self, card):
+        if card.get_suit() == self.suit:
+            self.cards.append(card)
+            return 1
+        return 0
+
+
 class Board:
     """ Class representing the game board
 
@@ -187,18 +215,36 @@ class Board:
         self.foundations = [CardCollection() for i in range(4)]
         self.tableau = [CardCollection() for i in range(7)]
 
-    def move(self, *args):
+    def move(self, a, b):
         """ Function to facilitate moving cards to other piles
 
         Arguments:
-            *args: depending on which action number of arguments may vary, check examples below
+            a: location which card(s) are being moved from
+            b: location which card(s) are being moved to
+
+        Returns:
+            1 or 0 depending on if the move could be done or not
 
         Examples:
-            ✓ moving cards from tableau pile to another tableau pile: a:'C4', b:'A'
-            ✗ moving cards from foundation pile to tableau pile: a:'FP1', b:'C'
-            ✗ moving cards from waste pile to a tableau pile: a:'W', 'C'
-            ✗ moving cards from tableau pile to foundation pile: a:'C', b:'FP'
+            1. moving cards from tableau pile to another tableau pile: a:'C4', b:'A'
+            2. moving cards from foundation pile to tableau pile: a:'*1', b:'C'
+            3. moving cards from waste pile to a tableau pile: a:'W', b:'C'
+            4. moving cards from waste pile to the foundation pile: a:'W', b:'*'
+            5. moving cards from tableau pile to foundation pile: a:'C', b:'*'
         """
+
+        if a[0].upper() in columns and len(a) > 1 and b.upper() in columns:
+            "means it's for 1"
+        elif a[0] == '*' and len(a) > 1 and b.upper() in columns:
+            "means it's for 2"
+        elif a.upper() == 'W':
+            if b.upper() in columns:
+                "means it's for 3"
+            elif b == "*":
+                "means it's for 4"
+        elif a.upper() in columns and b == "*":
+            "means it's for 5"
+
 
 
 def main():

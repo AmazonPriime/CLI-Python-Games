@@ -1,0 +1,104 @@
+##### How the board will be rendered to the user
+ - - - - - - - - - - - - - - - - -
+| Python Klondike --------------- |
+| (D)->[2♥] | {♣} {♥} {♠} {♦}     |
+| ------------------------------- |
+|    A   B   C   D   E   F   G    |
+| 1  J♦  []  []  []  []  []  []   |
+| 2      8♥  []  []  []  []  []   |
+| 3          7♠  []  []  []  []   |
+| 4              2♥  []  []  []   |
+| 5                  J♠  []  []   |
+| 6                      Q♦  []   |
+| 7                          A♦   |
+| ...                             |
+ - - - - - - - - - - - - - - - - -
+Enter Move:
+
+
+
+##### Card Move Logic
+--------------------------------------
+## tableau -> tableau ('C4', 'C')
+  * check arguments are valid
+    - a
+      ~ column letter must be A-G
+      ~ index number must be less than the collection length
+    - b
+      ~ column letter must be A-G
+  * check the card at the index number exists and is shown
+  * if the column in arg b is empty
+    - the card at index number must be a King
+  * if the column in arg b is not empty
+    - the last card in collection must be:
+      ~ 1 rank higher and of different suit colour
+  * if card can move
+    - move the card over by merging the subset from index number
+    - remove cards from the collection where cards are being moved
+    - if the new last card there is not shown
+      ~ change the card to be shown
+
+## foundation -> tableau ('*1', 'C')
+  * check arguments are valid
+    - a
+      ~ first char being * indicates foundation pile
+      ~ index number must be 1-4
+    - b
+      ~ column letter must be A-G
+  * check that foundation pile is not empty
+  * if column in arg b is empty
+    - King must be the top card of the foundation pile
+  * if column in arg b is not empty
+    - the last card in collection must be:
+      ~ 1 rank higher and of different suit colour
+  * if card can move
+    - add the card to the collection
+    - remove the card from the foundation pile
+
+## waste -> tableau ('W', 'C')
+  * check arguments are valid
+    - a
+      ~ arguments must be W
+    - b
+      ~ column letter must be A-G
+  * check that the waste pile is not empty
+  * if the collection at arg b is empty
+    - King must be on top of the waste pile
+  * if the collection at arg b is not empty
+    - the last card in collection must be:
+      ~ 1 rank higher and of different suit colour
+  * if card can move
+    - add the card to the collection
+    - remove the card from the waste pile
+
+## waste -> foundation ('W', '*')
+  * check arguments are valid
+    - a
+      ~ argument must be W
+    - b
+      ~ argument must be *
+  * check that the waste pile is not empty
+  * if the foundation pile (same pile as the card's suit) is empty
+    - card on top of waste pile must be an ace of that suit
+  * if the foundation pile is not empty
+    - card on top of waste pile must be 1 rank higher
+    - and the same suit
+  * if card can move
+    - add the card to the foundation pile
+    - remove the card from the waste pile
+
+## tableau -> foundation ('C', '*')
+  * check arguments are valid
+    - a
+      ~ argument must be A-G
+    - b
+      ~ argument must be *
+  * check that the column from arg b is not empty
+  * if the foundation pile is empty
+    - card at bottom of collection must be an ace of same suit
+  * if the foundation pile is not empty
+    - card at bottom of collection must be
+      ~ one rank higher and of the same suit
+  * if card can move
+    - add the card to the foundation pile
+    - remove card from the collection
