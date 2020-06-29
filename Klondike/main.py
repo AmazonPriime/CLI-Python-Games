@@ -106,6 +106,8 @@ class CardCollection:
         else:
             print('Card is not in the collection and cannot be removed.')
 
+
+
     def get_cards(self):
         return self.cards
 
@@ -194,41 +196,88 @@ class Board:
         # merge new collection and location B collections together
         collection_b.merge(temp_collection)
 
-    def move(self, a, b):
+    def tableau_arg_check(self, arg):
+        # if the locations are invalid then do nothing
+        if not arg[0].upper() in self.columns:
+            return -1
+        # if row is either not a number or is less than 1 then do nothing
+        try:
+            int(arg[1:])
+            if int(arg[1:]) < 1:
+                return -1
+        except:
+            return -1
+        # if the location row number is out of bounds then do nothing
+        if int(arg[1:]) > self.tableau[self.columns.index(arg[0].upper())].size():
+            return -1
+        return 1
+
+    def move(self, *args):
         """ Function to facilitate moving cards to other piles
 
         Arguments:
-            a: the card(s) which are being moved - 'C4'
-            b: location cards are being moved to - 'A'
+            *args: depending on which action number of arguments may vary, check examples below
+
+        Examples:
+            ✓ moving cards from tableau pile to another tableau pile: a:'C4', b:'A'
+            ✗ moving cards from foundation pile to tableau pile: a:'FP1', b:'C'
+            ✗ moving cards from waste pile to a tableau pile: a:'W', 'C'
+            ✗ moving cards from tableau pile to foundation pile: a:'C', b:'FP'
         """
 
-        # if locations aren't correct min lengths do nothing
-        if not (len(a) >= 2 and len(b) == 1):
-            return
-
-        # if either locations are invalid then do nothing
-        if not ((a[0].upper() in self.columns) and (b.upper() in self.columns)) :
-            return
-
-        # if row is either not a number or is less than 1 then do nothing
-        if isinstance(a[1:], int):
-            if int(a[1:]) < 1:
+        # check which of the types of moves is being performed
+        if len(args) == 2:
+            # the case that tableau to tableau
+            if len(args[0]) >= 2 and len(args[1]) == 1:
+                a, b = args[0], args[1]
+                # if the locations are invalid then do nothing
+                if not b.upper() in self.columns:
+                    return -1
+                # check argument for the tableau location
+                if tableau_arg_check(self, a) == -1:
+                    return
+                # create the collection reference variables
+                collection_a = self.tableau[self.columns.index(a[0].upper())]
+                a_index = int(a[1:] - 1)
+                collection_b = self.tableau[self.columns.index(b.upper())]
+            elif len(args[0]) == 3 and len(args[1]) == 2:
+                # turn the top card of the foundation into collection a and collection b being the tableau pile
+                try:
+                    int(args[0][-1])
+                    if int(args[0][-1]) < 1 or int(args[0][-1]) > 4:
+                        return
+                except:
+                    return
+                # if the foundation pile is empty do nothing
+                if self.foundation[int(args[0][-1])].size() == 0:
+                    return
+                # check argument for the tableau location
+                if tableau_arg_check(self, a) == -1:
+                    return
+                # create the collection reference variables
+                collection_a = CardCollection()
+                collection_a.add(self.foundation[int(args[0][-1])].get_card(-1))
+                a_index = 0
+            else:
                 return
+        elif len(args) == 1:
+            pass
         else:
             return
 
-        # if location A's row number is out of bounds then do nothing
-        if int(a[1:]) > self.tableau[self.columns.index(a[0].upper())].size():
-            return
+
+
+        ######### above make sure collection a and b are defined
+
+
+
 
         # if first card in the cards being moved isn't shown (faced up) then do nothing
-        collection_a = self.tableau[self.columns.index(a[0].upper())]
-        card_a = collection_a.get_card(int(a[1:] - 1))
-        if not collection_a.get_card(int(a[1:] - 1)).is_shown():
+        card_a = collection_a.get_card(a_index)
+        if not collection_a.get_card(a_index).is_shown():
             return
 
         # if the collection at location B has cards then handle it appropiately
-        collection_b = self.tableau[self.columns.index(b.upper())]
         if collection_b.size() > 0:
             card_b = collection_b.get_card(-1)
             # if the suits don't alternate in colour between card in location A and B then do nothing
@@ -237,15 +286,16 @@ class Board:
             # if rank of card on end of collection at location B is exactly 1 higher then move cards over
             if (card_b.get_rank() - 1) == card_a.get_rank():
                 # merge the two collections together
-                tableau_merge(collection_a, collection_b, int(a[1:] - 1))
+                tableau_merge(collection_a, collection_b, a_index)
             else:
                 return
         # if the card A value is King then move the partial collection over
         elif card_a.get_value() == 'K':
             # merge the two collections together
-            tableau_merge(collection_a, collection_b, int(a[1:] - 1))
+            tableau_merge(collection_a, collection_b, a_index)
         else:
             return
+
 
 
 def main():
