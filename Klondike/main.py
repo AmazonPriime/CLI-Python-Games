@@ -70,6 +70,32 @@ class Card:
         return self.shown
 
 
+class Move:
+    """ Class representing a move in the game
+
+    Attributes:
+        initial: the starting location for the move (waste, tableau, foundation)
+        destination: the end location for the move (waste, tableau, foundation)
+        card_shown: if a card was unvieled during the move
+        deck_recylced: if the deck was recylced
+    """
+
+    def __init__(self, initial, destination, card_shown = False):
+        self.initial = initial
+        self.destination = destination
+        self.card_shown = card_shown
+        self.deck_recylced = False
+
+    def __str__(self):
+        return f'{self.initial} -> {self.destination}'
+
+    def set_shown(self):
+        self.card_shown = True
+
+    def set_recycled(self):
+        self.deck_recylced = True
+
+
 class CardCollection:
     """ Class representing a collection of cards.
 
@@ -228,12 +254,21 @@ class Board:
     To exit the game type 'quit'.
     '''
 
+    scoring = '''Scoring:
+    Waste -> Tableau : +5 points
+    Waste -> Foundation : +10 points
+    Tableau -> Foundation : +10 points
+    Turning over Tableau card : +5 points
+    Foundation -> Tableau : -15 points
+    Recyling Waste : -100 points (0 minimum score)
+    '''
+
     def __init__(self):
         self.deck = Deck()
         self.waste = CardCollection()
         self.foundations = [Foundation(suit) for suit in Deck.suits.values()]
         self.tableau = [CardCollection() for i in range(7)]
-        self.message = 'Type \'help\' for a list of commands.'
+        self.message = 'Type \'help\' for a list of commands and to see how scoring works.'
 
     def setup(self):
         # adds cards to the tableau increasing by 1 for each pile and setting last card in each pile to shown
@@ -244,7 +279,7 @@ class Board:
                 if i == j:
                     card.set_shown()
 
-    def draw(self):
+    def draw(self, move):
         # if there are cards in the deck then draw a card and add it to waste pile
         if self.deck.size() > 0:
             card = self.deck.draw()
@@ -252,12 +287,13 @@ class Board:
             card.set_shown()
         # otherwise recycle the cards in the waste pile
         else:
+            move.set_recycled()
             for card in self.waste.get_cards()[::-1]:
                 self.waste.remove(card)
                 self.deck.add(card)
         # if the deck has cards and wast does not then call the function again
         if self.waste.size() == 0 and self.deck.size() != 0:
-            self.draw()
+            self.draw(move)
 
     def get_foundation(self, card):
         # finds the foundation the card belongs to
@@ -278,14 +314,15 @@ class Board:
                 next_card.set_shown()
             return 1
 
-    def last_card_shown(card):
+    def last_card_shown(card, move):
         # if the card is a card then make it set to being shown
-        if isinstance(next_card, Card):
-            next_card.set_shown()
+        if isinstance(card, Card) and not card.is_shown():
+            card.set_shown()
+            move.set_shown()
 
     def move_cards(collection_a, collection_b, cards):
         # loops through the cards to be moved and removes them from collection a and adds to collection b
-        for card in cards_moving:
+        for card in cards:
             collection_a.remove(card)
             collection_b.add(card)
 
@@ -321,6 +358,8 @@ class Board:
             a_index = int(a[1:]) - 1
             if not collection_a.get_card(a_index).is_shown():
                 return -1
+            # create a move object
+            move_obj = Move('tableau', 'tableau')
 
         # checks for the second example - foundation to tableau
         elif a[0] == '*' and len(a) == 2 and b.upper() in self.columns:
@@ -335,6 +374,8 @@ class Board:
             collection_a = self.foundations[index - 1]
             collection_b = self.tableau[self.columns.index(b.upper())]
             a_index = -1
+            # create a move object
+            move_obj = Move('foundation', 'tableau')
 
         # check for the third and fourth examples - moving from the waste pile
         elif a.upper() == 'W':
@@ -348,6 +389,8 @@ class Board:
             # check where collection b will come from the tableau
             if b.upper() in self.columns:
                 collection_b = self.tableau[self.columns.index(b.upper())]
+                # create a move object
+                move_obj = Move('waste', 'tableau')
 
             # check if collection b will come from the foundation
             elif b == "*":
@@ -362,7 +405,9 @@ class Board:
                 if result == -1:
                     return -1
                 elif result == 1:
-                    return 1
+                    return Move('waste', 'foundation')
+                # create a move object - in the case the card being moved is not an ACE
+                move_obj = Move('waste', 'foundation')
             else:
                 return -1
 
@@ -385,7 +430,9 @@ class Board:
             if result == -1:
                 return -1
             elif result == 1:
-                return 1
+                return Move('tableau', 'foundation')
+            # create a move object - in the case the card being moved is not an ACE
+            move_obj = Move('tableau', 'foundation')
         else:
             return -1
 
@@ -398,9 +445,9 @@ class Board:
             # checks if card is a king
             if first_card.get_rank() == 12:
                 # moves the cards over
-                self.move_cards(collection_a, collection_b, cards_moving)
+                Board.move_cards(collection_a, collection_b, cards_moving)
                 # makes the card at end of old collection be visible/shown
-                self.last_card_shown(collection_a.get_card(-1))
+                Board.last_card_shown(collection_a.get_card(-1), move_obj)
             else:
                 return 0
 
@@ -410,29 +457,32 @@ class Board:
             if isinstance(collection_b, Foundation):
                 # if card is being sent to the correct foundation then move the card over
                 if first_card.get_suit() == collection_b.get_suit():
-                    self.move_cards(collection_a, collection_b, cards_moving)
+                    Board.move_cards(collection_a, collection_b, cards_moving)
                     # makes the card at end of old collection be visible/shown
-                    self.last_card_shown(collection_a.get_card(-1))
+                    Board.last_card_shown(collection_a.get_card(-1), move_obj)
 
             # if card is being sent to a tableau pile
             else:
                 # if the card alternates in colour the move the card(s) over
                 if first_card.get_suit().get_colour() != collection_b.get_card(-1).get_suit().get_colour():
                     # move the cards over
-                    self.move_cards(collection_a, collection_b, cards_moving)
+                    Board.move_cards(collection_a, collection_b, cards_moving)
                     # makes the card at end of old collection be visible/shown
-                    self.last_card_shown(collection_a.get_card(-1))
+                    Board.last_card_shown(collection_a.get_card(-1), move_obj)
 
         # if the destination is a foundation and the card being moved is one rank higher than destination
         elif isinstance(collection_b, Foundation) and first_card.get_rank() - 1 == collection_b.get_card(-1).get_rank():
             # move the card over
-            self.move_cards(collection_a, collection_b, cards_moving)
+            Board.move_cards(collection_a, collection_b, cards_moving)
             # makes the card at end of old collection be visible/shown
-            self.last_card_shown(collection_a.get_card(-1))
+            Board.last_card_shown(collection_a.get_card(-1), move_obj)
 
         # return 0 if nothing can be done to display invalid move error message to user
         else:
             return 0
+
+        # if move was successful return a move object - created during args checking
+        return move_obj
 
     def set_message(self, message):
         self.message = message
@@ -478,6 +528,7 @@ class Game:
     Attributes:
         board: the board with all the different piles of cards
         score: the players score during the game
+        moves: a list containing all the moves done during the game
         start_time: the time the game was initialised
         username: the user who is playing
     """
@@ -485,6 +536,7 @@ class Game:
     def __init__(self, username):
         self.board = Board()
         self.score = 0
+        self.moves = []
         self.start_time = datetime.datetime.now().time()
         self.username = username
 
@@ -498,8 +550,31 @@ class Game:
     def help(self):
         # clears the terminal and prints out the help message
         Game.clear()
-        print(Board.help)
+        print(Board.help + '\n' + Board.scoring)
         input('Type anything and press enter to continue.')
+
+    def update_score(self, move):
+        if move.initial == 'waste':
+            if move.destination == 'tableau':
+                self.score += 5
+            elif move.destination == 'foundation':
+                self.score += 10
+        elif move.initial == 'tableau':
+            if move.destination == 'foundation':
+                self.score += 10
+        elif move.initial == 'foundation':
+            if move.destination == 'tableau':
+                self.score -= 15
+        elif move.initial == 'deck':
+            if move.deck_recylced:
+                self.score -= 100
+                if self.score < 0:
+                    self.score = 0
+        else:
+            return
+        if move.card_shown:
+            self.score += 5
+        self.moves.append(move)
 
     def start(self):
         # sets up the board by dealing out to the tableau piles
@@ -519,17 +594,21 @@ class Game:
                 break
             # if the user isses the draw or dd command then a card is drawn and added to the waste pile
             elif user_input.lower() == 'draw' or user_input.lower() == 'dd':
-                self.board.draw()
+                # create move object
+                move = Move('deck', 'waste')
+                self.board.draw(move)
+                self.update_score(move)
             # if there are two arguments it's possible the user wants to move, so we issue the move command
             elif len(user_input.split()) == 2:
                 a, b = user_input.split()
                 result = self.board.move(a, b)
-                # based on the output then update the board message appropiately -1 invalid command, 0 invalid move, anything else is a valid move
+                # based on the output then update the board message appropiately -1 invalid command, 0 invalid move, a move instance would indicate a successful move
                 if result == -1:
                     self.board.set_message('Invalid command type \'help\' to see a list of commands.')
                 elif result == 0:
                     self.board.set_message('Move could not be done as it\'s an invalid move.')
-                else:
+                elif isinstance(result, Move):
+                    self.update_score(result)
                     self.board.set_message('Nice move! Remember if you need help to type \'help\'')
             # if no valid command is entered then set the board message to reflect it
             else:

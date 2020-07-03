@@ -9,4 +9,4 @@
 ```shell
 python3 main.py
 ```
-4. You're done!
+4. You're done! Type in a username and begin playing - type help to see how to play.
